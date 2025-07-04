@@ -1,4 +1,13 @@
 #EXTM3U
-# Playlist auto-updated: 2025-07-04 13:50:43 UTC
+# Playlist auto-updated: 2025-07-04 13:59:29 UTC
 # GitHub Repo: https://github.com/lerohero/jhingalala
+
+#EXTINF:-1 tvg-id="Jamuna TV" tvg-logo="https://i.imgur.com/JAMUNATV.png" group-title="YouTube (Offline)",Jamuna TV (Currently Offline)
+https://example.com/offline.mp4
+
+#EXTINF:-1 tvg-id="Somoy TV" tvg-logo="https://i.imgur.com/SOMOYTV.png" group-title="YouTube (Offline)",Somoy TV (Currently Offline)
+https://example.com/offline.mp4
+
+#EXTINF:-1 tvg-id="Channel 24" tvg-logo="https://i.imgur.com/CHANNEL24.png" group-title="YouTube (Offline)",Channel 24 (Currently Offline)
+https://example.com/offline.mp4
 
