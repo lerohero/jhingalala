@@ -30,7 +30,7 @@ jobs:
 
       - name: Configure Tor
         run: |
-          echo "Log notice file /dev/null" | sudo tee -a /etc/tor/torrc
+          echo "Log notice file /tmp/tor.log" | sudo tee -a /etc/tor/torrc
           echo "ExitNodes {us} StrictNodes 1" | sudo tee -a /etc/tor/torrc
           echo "MaxCircuitDirtiness 600" | sudo tee -a /etc/tor/torrc
           sudo systemctl restart tor
@@ -53,13 +53,13 @@ jobs:
             echo "Tor Attempt $i..."
             if torsocks --timeout 30 ./update_playlist.sh > youtube_live.m3u; then
               if grep -q "EXTINF" youtube_live.m3u; then
-                echo "success=true" >> $GITHUB_OUTPUT
+                echo "success=true" >> "$GITHUB_OUTPUT"
                 exit 0
               fi
             fi
-            sleep $((i * 5))
+            sleep $((2 ** i))
           done
-          echo "success=false" >> $GITHUB_OUTPUT
+          echo "success=false" >> "$GITHUB_OUTPUT"
           exit 1
 
       - name: Generate Playlist (Direct Fallback)
@@ -69,17 +69,18 @@ jobs:
           echo "Falling back to direct connection..."
           ./update_playlist.sh > youtube_live.m3u || echo "Direct connection failed"
           if grep -q "EXTINF" youtube_live.m3u; then
-            echo "success=true" >> $GITHUB_OUTPUT
+            echo "success=true" >> "$GITHUB_OUTPUT"
           else
-            echo "success=false" >> $GITHUB_OUTPUT
+            echo "success=false" >> "$GITHUB_OUTPUT"
           fi
 
       # ========== VALIDATION & COMMIT ==========
       - name: Validate Playlist
         if: steps.direct_attempt.outputs.success == 'true' || steps.tor_attempt.outputs.success == 'true'
+        id: validate
         run: |
           valid_channels=$(grep -c "EXTINF" youtube_live.m3u)
-          echo "valid_channels=$valid_channels" >> $GITHUB_OUTPUT
+          echo "valid_channels=$valid_channels" >> "$GITHUB_OUTPUT"
           [ "$valid_channels" -gt 0 ] || exit 1
 
       - name: Commit Changes
@@ -99,11 +100,11 @@ jobs:
           name: debug-logs
           path: |
             youtube_live.m3u
-            /var/log/tor/log
+            /tmp/tor.log
           retention-days: 1
 
-      - name: Notify Failure
-        if: failure()
+      - name: Notify Failure (Issues Only)
+        if: failure() && github.event_name != 'schedule'
         uses: actions/github-script@v6
         with:
           script: |
