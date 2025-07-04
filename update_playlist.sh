@@ -9,9 +9,9 @@ LOG_PREFIX="[IPTV Updater]"
 
 # YouTube channels: Format "Channel Name|YouTube URL|Logo URL"
 channels=(
-  "Jamuna TV|https://www.youtube.com/watch?v=yDzvLqfQhyM|https://i.imgur.com/JAMUNATV.png"
-  "Somoy TV|https://www.youtube.com/watch?v=ssieXqdIxAI|https://i.imgur.com/SOMOYTV.png"
-  "Channel 24|https://www.youtube.com/watch?v=HjZ48tDFjZU|https://i.imgur.com/CHANNEL24.png"
+  "Jamuna TV|https://www.youtube.com/watch?v=yDzvLqfQhyM|https://raw.githubusercontent.com/r1d3x6/tandjtales/refs/heads/Tom-and-Jerry-Tales/jamunatv.png"
+  "Somoy TV|https://www.youtube.com/watch?v=ssieXqdIxAI|https://raw.githubusercontent.com/r1d3x6/tandjtales/refs/heads/Tom-and-Jerry-Tales/somoytv.png"
+  "Channel 24|https://www.youtube.com/watch?v=HjZ48tDFjZU|https://raw.githubusercontent.com/r1d3x6/tandjtales/refs/heads/Tom-and-Jerry-Tales/channel-24.png"
 )
 
 # Output M3U header
