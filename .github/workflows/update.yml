@@ -1,44 +1,123 @@
-name: Update YouTube IPTV Playlist
+name: YouTube IPTV Playlist Updater
 
 on:
   schedule:
-    - cron: "0 */4 * * *"  # Runs every 4 hours (e.g., 0:00, 4:00, 8:00, etc.)
-  workflow_dispatch:        # Manual trigger option
+    - cron: "0 */6 * * *"  # Every 6 hours (reduced frequency for Tor)
+  workflow_dispatch:
 
 jobs:
   update:
     runs-on: ubuntu-latest
+    timeout-minutes: 30  # Extended timeout for Tor
     permissions:
-      contents: write  # This gives the GITHUB_TOKEN write access to push changes
-    
+      contents: write
+
     steps:
+      # ========== SETUP ==========
       - name: Checkout Repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Needed for proper git history
+          fetch-depth: 0  # Required for git history
 
-      - name: Install Dependencies
+      - name: Install System Dependencies
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y ffmpeg
-          pip install yt-dlp
+          sudo apt-get install -y \
+            tor \
+            torsocks \
+            ffmpeg \
+            obfs4proxy
 
-      - name: Generate Playlist
+      - name: Configure Tor
+        run: |
+          echo "Log notice file /dev/null" | sudo tee -a /etc/tor/torrc
+          echo "ExitNodes {us} StrictNodes 1" | sudo tee -a /etc/tor/torrc  # US exit nodes only
+          echo "MaxCircuitDirtiness 600" | sudo tee -a /etc/tor/torrc
+          sudo systemctl restart tor
+          sleep 5  # Wait for Tor to initialize
+
+      - name: Verify Tor Connection
+        run: |
+          torsocks --timeout 30 curl -s https://check.torproject.org/api/ip | grep -q '"IsTor":true'
+          echo "Tor connection verified successfully"
+
+      # ========== PLAYLIST GENERATION ==========
+      - name: Generate Playlist (Tor Attempt)
+        id: tor_attempt
+        env:
+          TOR_PROXY: "socks5://localhost:9050"
+          MAX_RETRIES: 3
         run: |
           chmod +x update_playlist.sh
-          # Continue on error to handle individual channel failures
-          ./update_playlist.sh > youtube_live.m3u || echo "Some channels failed, but continuing..."
+          for i in $(seq 1 $MAX_RETRIES); do
+            echo "Attempt $i with Tor..."
+            if torsocks --timeout 30 ./update_playlist.sh > youtube_live.m3u; then
+              if grep -q "EXTINF" youtube_live.m3u; then
+                echo "success=true" >> $GITHUB_OUTPUT
+                exit 0
+              fi
+            fi
+            sleep $((i * 5))  # Exponential backoff
+          done
+          echo "success=false" >> $GITHUB_OUTPUT
+          exit 1
+
+      - name: Generate Playlist (Direct Fallback)
+        if: steps.tor_attempt.outputs.success != 'true'
+        id: direct_attempt
+        run: |
+          echo "Falling back to direct connection..."
+          ./update_playlist.sh > youtube_live.m3u || echo "Direct connection failed"
+          if grep -q "EXTINF" youtube_live.m3u; then
+            echo "success=true" >> $GITHUB_OUTPUT
+          else
+            echo "success=false" >> $GITHUB_OUTPUT
+          fi
+
+      # ========== VALIDATION & COMMIT ==========
+      - name: Validate Playlist
+        if: steps.direct_attempt.outputs.success == 'true' || steps.tor_attempt.outputs.success == 'true'
+        run: |
+          valid_channels=$(grep -c "EXTINF" youtube_live.m3u)
+          echo "Valid channels: $valid_channels"
+          echo "valid_channels=$valid_channels" >> $GITHUB_OUTPUT
+          if [ "$valid_channels" -eq 0 ]; then
+            echo "::error::No valid channels found!"
+            exit 1
+          fi
 
       - name: Commit Changes
+        if: steps.direct_attempt.outputs.success == 'true' || steps.tor_attempt.outputs.success == 'true'
         run: |
           git config --global user.name "GitHub Actions"
           git config --global user.email "actions@github.com"
           git add youtube_live.m3u
           
-          # Only commit if there are changes
-          if git diff --quiet && git diff --staged --quiet; then
-            echo "No changes to commit"
-          else
-            git commit -m "Auto-update: $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
+          if ! git diff --quiet; then
+            git commit -m "Auto-update: $(date -u '+%Y-%m-%d %H:%M:%S UTC') [Channels: ${{ steps.validate.outputs.valid_channels }}]"
             git push
+          else
+            echo "No changes to commit"
           fi
+
+      # ========== FAILURE HANDLING ==========
+      - name: Upload Debug Artifact
+        if: failure()
+        uses: actions/upload-artifact@v3
+        with:
+          name: debug-logs
+          path: |
+            youtube_live.m3u
+            /var/log/tor/log
+
+      - name: Notify Failure
+        if: failure()
+        uses: actions/github-script@v6
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: "Playlist update failed! Debug info: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            })
