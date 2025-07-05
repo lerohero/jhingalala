@@ -1,0 +1,3 @@
+Jamuna TV,https://www.youtube.com/watch?v=yDzvLqfQhyM,https://raw.githubusercontent.com/r1d3x6/tandjtales/refs/heads/Tom-and-Jerry-Tales/jamunatv.png
+Somoy TV,https://www.youtube.com/watch?v=ssieXqdIxAI,https://raw.githubusercontent.com/r1d3x6/tandjtales/refs/heads/Tom-and-Jerry-Tales/somoytv.png
+Channel 24,https://www.youtube.com/watch?v=HjZ48tDFjZU,https://raw.githubusercontent.com/r1d3x6/tandjtales/refs/heads/Tom-and-Jerry-Tales/channel-24.pn
